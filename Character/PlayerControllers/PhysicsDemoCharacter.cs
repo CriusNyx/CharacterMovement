@@ -16,7 +16,8 @@ namespace UnityEngine.CharacterMovement
             motionController.groundBuffer = 0.1f;
             motionController.hoverDistance = 0.6f;
             motionController.speed = 10f;
-            motionController.acceleration = 5f;
+            motionController.acceleration = 50f;
+            motionController.airAccelerationRatio = 0.25f;
             motionController.radius = 0.4f;
             motionController.layerMask = ~LayerMask.GetMask("Character");
         }
@@ -47,7 +48,12 @@ namespace UnityEngine.CharacterMovement
                 input = input / mag;
             }
 
-            motionController.targetVelocity = Vector3.right;
+            if(motionController.Grounded && Input.GetKeyDown(KeyCode.Space))
+            {
+                motionController.ApplyInpulse(Vector3.up * 10f);
+            }
+
+            motionController.targetVelocity = input;
         }
     }
 }

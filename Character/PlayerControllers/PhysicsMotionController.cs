@@ -50,6 +50,22 @@ namespace UnityEngine.CharacterMovement
         /// </summary>
         public float acceleration;
 
+        public float airAcceleration;
+
+        public float airAccelerationRatio
+        {
+            get
+            {
+                return airAcceleration / acceleration;
+            }
+            set
+            {
+                airAcceleration = acceleration * value;
+            }
+        }
+
+        public float gravity = -20f;
+
         /// <summary>
         /// This does the work of snapping the character to the ground, and matching slopes
         /// </summary>
@@ -123,6 +139,23 @@ namespace UnityEngine.CharacterMovement
             }
         }
 
+        private bool grounded;
+        /// <summary>
+        /// Returns true if the character is grounded
+        /// </summary>
+        public bool Grounded
+        {
+            get
+            {
+                return grounded;
+            }
+        }
+        
+        /// <summary>
+        /// Causes this component to ignore ground collision for a few frames.
+        /// </summary>
+        private int airFreezeFrames = -1;
+
         /// <summary>
         /// Initialization
         /// </summary>
@@ -142,41 +175,89 @@ namespace UnityEngine.CharacterMovement
 
         private void FixedUpdate()
         {
-            //Calculate the accleration of the character
-            localVelocity = Vector3.Lerp(localVelocity, targetVelocity * speed, acceleration * Time.deltaTime);
-
             //Initialize placeholder variables for surface correction, if the character is grounded
             Vector3 correctedPoint, surfaceNormal;
 
             //Determine if the character is grounded.
             //See ground detector for a description of the algorithm
             //  TODO, convert this algorithm to a method call, for maintainability
-            if(groundDetector.GetGround(out correctedPoint, out surfaceNormal, true))
+            if(airFreezeFrames < 0 && groundDetector.GetGround(out correctedPoint, out surfaceNormal, Grounded))
             {
-                //Debug.DrawLine(transform.position, correctedPoint, Color.red);
-                //correct the position, if the character is grounded
-                transform.position = correctedPoint;
-
-                //Correct the velocity for a slope
-                //This operation works by projecting the velocity onto a plane representing the surface of the slope
-                //When applied each frame it causes the controller to glide gracefully, and have correct speed and motion going up and down slopes
-                //The current algorithm implmented could have issues going up very steep slopes. This can be fixed by setting radius to -1, but this will also disable the cyotee effect
-                // TODO: allow cyotee effect and steep slope correction
-                Vector3 tempVelocity;
-                Math3d.LinePlaneIntersection(out tempVelocity, localVelocity, groundDetector.direction, surfaceNormal, Vector3.zero);
-
-                //correct speed to match original speed expected
-                tempVelocity = tempVelocity.normalized * localVelocity.magnitude;
-
-                //Assign velocity to controller
-                rigidbody.velocity = tempVelocity;
+                GroundUpdate(correctedPoint, surfaceNormal);
             }
             else
             {
-                //Simple case, just apply velocity
-                rigidbody.velocity = localVelocity;
+                AirUpdate();
             }
+
+            airFreezeFrames--;
+            airFreezeFrames = Mathf.Max(airFreezeFrames, -1);
             //Debug.DrawRay(transform.position, rigidbody.velocity);
+        }
+
+        private void GroundUpdate(Vector3 correctedPoint, Vector3 surfaceNormal)
+        {
+            //correct velocity if landing
+            if(!Grounded)
+            {
+                Math3d.LinePlaneIntersection(out localVelocity, localVelocity, groundDetector.direction, groundDetector.direction, Vector3.zero);
+            }
+
+            //Calculate the accleration of the character
+            localVelocity = Vector3.MoveTowards(localVelocity, targetVelocity * speed, acceleration * Time.deltaTime);
+
+            if(Vector3.Dot(localVelocity.normalized, surfaceNormal) < Mathf.Cos(60f))
+            {
+                AirUpdate();
+                return;
+            }
+
+            //Debug.DrawLine(transform.position, correctedPoint, Color.red);
+            //correct the position, if the character is grounded
+            transform.position = correctedPoint;
+
+            //Correct the velocity for a slope
+            //This operation works by projecting the velocity onto a plane representing the surface of the slope
+            //When applied each frame it causes the controller to glide gracefully, and have correct speed and motion going up and down slopes
+            //The current algorithm implmented could have issues going up very steep slopes. This can be fixed by setting radius to -1, but this will also disable the cyotee effect
+            // TODO: allow cyotee effect and steep slope correction
+            Vector3 tempVelocity;
+            Math3d.LinePlaneIntersection(out tempVelocity, localVelocity, groundDetector.direction, surfaceNormal, Vector3.zero);
+
+            //correct speed to match original speed expected
+            tempVelocity = tempVelocity.normalized * localVelocity.magnitude;
+
+            //Assign velocity to controller
+            rigidbody.velocity = tempVelocity;
+
+            grounded = true;
+        }
+
+        private void AirUpdate()
+        {
+            //Vector3 temp = localVelocity;
+            float y = localVelocity.y;
+            y += gravity * Time.deltaTime;
+            localVelocity.y = 0f;
+            localVelocity = Vector3.MoveTowards(localVelocity, targetVelocity * speed, airAcceleration * Time.deltaTime);
+            localVelocity.y = y;
+
+            rigidbody.velocity = localVelocity;
+
+            grounded = false;
+        }
+
+        public void ApplyInpulse(Vector3 direction, bool groundInpulse = false)
+        {
+            localVelocity += direction;
+            if(!groundInpulse)
+                airFreezeFrames = 3;
+        }
+
+        public void ApplyInpulse(Vector3 direction, int airFreezeFrames)
+        {
+            localVelocity += direction;
+            this.airFreezeFrames = airFreezeFrames;
         }
     }
 }
