@@ -50,8 +50,17 @@ namespace UnityEngine.CharacterMovement
         /// </summary>
         public float acceleration;
 
+        /// <summary>
+        /// Air acceleration
+        /// In many cases, it may be easier to set air acceleration ratio
+        /// </summary>
         public float airAcceleration;
 
+        /// <summary>
+        /// Ratio of ground acceleration to air acceleration
+        /// High ratios (close to 1) will allow a great deal of air control, while low ratios allow little, requireing player, or character to commit to jumps
+        /// In the case of NPC's, low ratios may be better, since they allow players to predict NPC movement better
+        /// </summary>
         public float airAccelerationRatio
         {
             get
@@ -157,6 +166,42 @@ namespace UnityEngine.CharacterMovement
         private int airFreezeFrames = -1;
 
         /// <summary>
+        /// If set to true, unity engine will update this component automatically
+        /// </summary>
+        public bool autoUpdate = true;
+        public bool updateOnPhysicsFrames = true;
+
+        private int lastFrameUpdated = -1;
+
+        public RigidbodyInterpolation interpolation
+        {
+            get
+            {
+                return rigidbody.interpolation;
+            }
+            set
+            {
+                rigidbody.interpolation = value;
+            }
+        }
+
+        private static PhysicMaterial PhysMat
+        {
+            get
+            {
+                if(physMat == null)
+                {
+                    physMat = new PhysicMaterial();
+                    physMat.staticFriction = 0f;
+                    physMat.dynamicFriction = 0f;
+                    physMat.frictionCombine = PhysicMaterialCombine.Minimum;
+                }
+                return physMat;
+            }
+        }
+        private static PhysicMaterial physMat;
+
+        /// <summary>
         /// Initialization
         /// </summary>
         private void Awake()
@@ -171,9 +216,37 @@ namespace UnityEngine.CharacterMovement
             rigidbody.useGravity = false;
             //Freeze the rotation of the character, so that it can be controlled by the animation controller for the character
             rigidbody.constraints = RigidbodyConstraints.FreezeRotation;
+            rigidbody.interpolation = RigidbodyInterpolation.None;
+
+            GetComponent<Collider>().material = PhysMat;
+        }
+
+        private void Update()
+        {
+            if(autoUpdate && !updateOnPhysicsFrames)
+            {
+                PrivateUpdate(Time.deltaTime);
+            }
         }
 
         private void FixedUpdate()
+        {
+            if(autoUpdate && updateOnPhysicsFrames)
+            {
+                PrivateUpdate(Time.fixedDeltaTime);
+            }
+        }
+
+        public void UpdateNow(float deltaTime = -1)
+        {
+            if(deltaTime == -1)
+                deltaTime = Time.deltaTime;
+            if(autoUpdate)
+                throw new System.Exception("Cannot call Update Now on component set to auto update");
+            PrivateUpdate(deltaTime);
+        }
+
+        private void PrivateUpdate(float deltaTime)
         {
             //Initialize placeholder variables for surface correction, if the character is grounded
             Vector3 correctedPoint, surfaceNormal;
@@ -183,11 +256,11 @@ namespace UnityEngine.CharacterMovement
             //  TODO, convert this algorithm to a method call, for maintainability
             if(airFreezeFrames < 0 && groundDetector.GetGround(out correctedPoint, out surfaceNormal, Grounded))
             {
-                GroundUpdate(correctedPoint, surfaceNormal);
+                GroundUpdate(correctedPoint, surfaceNormal, deltaTime);
             }
             else
             {
-                AirUpdate();
+                AirUpdate(deltaTime);
             }
 
             airFreezeFrames--;
@@ -195,7 +268,7 @@ namespace UnityEngine.CharacterMovement
             //Debug.DrawRay(transform.position, rigidbody.velocity);
         }
 
-        private void GroundUpdate(Vector3 correctedPoint, Vector3 surfaceNormal)
+        private void GroundUpdate(Vector3 correctedPoint, Vector3 surfaceNormal, float deltaTime)
         {
             //correct velocity if landing
             if(!Grounded)
@@ -208,7 +281,7 @@ namespace UnityEngine.CharacterMovement
 
             if(Vector3.Dot(localVelocity.normalized, surfaceNormal) < Mathf.Cos(60f))
             {
-                AirUpdate();
+                AirUpdate(deltaTime);
                 return;
             }
 
@@ -233,13 +306,13 @@ namespace UnityEngine.CharacterMovement
             grounded = true;
         }
 
-        private void AirUpdate()
+        private void AirUpdate(float deltaTime)
         {
-            //Vector3 temp = localVelocity;
+            localVelocity = rigidbody.velocity;
             float y = localVelocity.y;
             y += gravity * Time.deltaTime;
             localVelocity.y = 0f;
-            localVelocity = Vector3.MoveTowards(localVelocity, targetVelocity * speed, airAcceleration * Time.deltaTime);
+            localVelocity = Vector3.MoveTowards(localVelocity, targetVelocity * speed, airAcceleration * deltaTime);
             localVelocity.y = y;
 
             rigidbody.velocity = localVelocity;
@@ -252,12 +325,39 @@ namespace UnityEngine.CharacterMovement
             localVelocity += direction;
             if(!groundInpulse)
                 airFreezeFrames = 3;
+
+            rigidbody.velocity = localVelocity;
         }
 
         public void ApplyInpulse(Vector3 direction, int airFreezeFrames)
         {
             localVelocity += direction;
             this.airFreezeFrames = airFreezeFrames;
+
+            rigidbody.velocity = localVelocity;
+        }
+
+        private void OnCollisionEnter(Collision collision)
+        {
+            OnCollision(collision);
+        }
+
+        private void OnCollisionStay(Collision collision)
+        {
+            OnCollision(collision);
+        }
+
+        private void OnCollision(Collision collision)
+        {
+            //foreach(ContactPoint contactPoint in collision)
+            //{
+            //    if(Vector3.Dot(rigidbody.velocity, contactPoint.normal) < 0f)
+            //    {
+            //        Vector3 temp;
+            //        Math3d.LinePlaneIntersection(out temp, rigidbody.velocity, contactPoint.normal, contactPoint.normal, Vector3.zero);
+            //        rigidbody.velocity = temp;
+            //    }
+            //}
         }
     }
 }

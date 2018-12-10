@@ -20,6 +20,8 @@ namespace UnityEngine.CharacterMovement
             motionController.airAccelerationRatio = 0.25f;
             motionController.radius = 0.4f;
             motionController.layerMask = ~LayerMask.GetMask("Character");
+
+            //motionController.autoUpdate = false;
         }
 
         private void Update()
@@ -54,6 +56,8 @@ namespace UnityEngine.CharacterMovement
             }
 
             motionController.targetVelocity = input;
+
+            //motionController.UpdateNow();
         }
     }
 }
