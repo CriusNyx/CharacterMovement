@@ -185,9 +185,9 @@ namespace UnityEngine.CharacterMovement
             RaycastHit[] hits = raycast.CastAll();
             foreach(var hit in hits)
             {
-                Debug.Log(hit.ToString());
-                Debug.Log(hit.point.ToString());
-                Debug.Log(hit.normal.ToString());
+                //Debug.Log(hit.ToString());
+                //Debug.Log(hit.point.ToString());
+                //Debug.Log(hit.normal.ToString());
                 //Validate each hit
 
                 //Determine the distance to the hit (on the verticle axis only)

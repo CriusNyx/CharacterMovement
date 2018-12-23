@@ -286,9 +286,9 @@ namespace UnityEngine.CharacterMovement
                 return;
             }
 
-            Debug.DrawLine(transform.position, correctedPoint, Color.red);
-            Debug.DrawRay(transform.position, Vector3.up * 0.1f, Color.red);
-            Debug.Log("Ground");
+            //Debug.DrawLine(transform.position, correctedPoint, Color.red);
+            //Debug.DrawRay(transform.position, Vector3.up * 0.1f, Color.red);
+            //Debug.Log("Ground");
             //correct the position, if the character is grounded
             transform.position = correctedPoint;
 

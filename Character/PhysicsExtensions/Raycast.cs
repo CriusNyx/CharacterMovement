@@ -189,7 +189,7 @@ namespace UnityEngine.PhysicsExtensions
         /// <returns></returns>
         public RaycastHit[] CastAll()
         {
-            Debug.Log(origin.ToString());
+            //Debug.Log(origin.ToString());
             if(isSphereCast)
             {
                 return Physics.SphereCastAll(origin, sphereCastRadius, direction, distance, layerMask);
