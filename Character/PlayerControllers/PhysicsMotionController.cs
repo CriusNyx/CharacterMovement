@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.PhysicsExtensions;
@@ -285,7 +286,9 @@ namespace UnityEngine.CharacterMovement
                 return;
             }
 
-            //Debug.DrawLine(transform.position, correctedPoint, Color.red);
+            Debug.DrawLine(transform.position, correctedPoint, Color.red);
+            Debug.DrawRay(transform.position, Vector3.up * 0.1f, Color.red);
+            Debug.Log("Ground");
             //correct the position, if the character is grounded
             transform.position = correctedPoint;
 
@@ -358,6 +361,32 @@ namespace UnityEngine.CharacterMovement
             //        rigidbody.velocity = temp;
             //    }
             //}
+        }
+
+        public static PhysicsMotionController CreateMotionController(GameObject gameObject, float hoverDistance = 0.6f, float groundDetectionBuffer = 0.1f, 
+            float radius = 0.4f, int layer = -1, float speed = 10f, float acceleration = 50f, float airAccelerationRatio = 0.25f)
+        {
+            var motionController = gameObject.AddComponent<PhysicsMotionController>();
+            motionController.hoverDistance = hoverDistance;
+            motionController.groundBuffer = groundDetectionBuffer;
+            motionController.radius = radius;
+            motionController.layerMask = ~(1 << layer);
+            motionController.speed = speed;
+            motionController.acceleration = acceleration;
+            motionController.airAcceleration = airAccelerationRatio;
+
+            SetLayerRecursive(gameObject.transform, layer);
+
+            return motionController;
+        }
+
+        private static void SetLayerRecursive(Transform transform, int layer)
+        {
+            transform.gameObject.layer = layer;
+            foreach(Transform child in transform)
+            {
+                SetLayerRecursive(child, layer);
+            }
         }
     }
 }
